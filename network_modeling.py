@@ -46,4 +46,4 @@ SNet.add_nodes_from(subreddits)
 
 subreddit_user_map = subreddits_per_user(SNet, submissions, comments)
 
-nx.write_pajek(SNet, "models/snet.pajek")
+nx.write_pajek(SNet, "models/snet.net")
