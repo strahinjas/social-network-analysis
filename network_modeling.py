@@ -26,7 +26,7 @@ def subreddits_per_user(graph, *data_frames):
             user = row["author"]
             subreddit_to_add = row["subreddit"]
 
-            if user in result.keys() and subreddit_to_add not in result[user]:
+            if (user in result.keys()) and (subreddit_to_add not in result[user]):
                 connect_nodes(result[user], subreddit_to_add)
                 result[user].add(subreddit_to_add)
             else:
@@ -45,5 +45,8 @@ SNet = nx.Graph()
 SNet.add_nodes_from(subreddits)
 
 subreddit_user_map = subreddits_per_user(SNet, submissions, comments)
+
+for key in subreddit_user_map:
+    print(len(subreddit_user_map[key]))
 
 nx.write_pajek(SNet, "models/snet.net")
