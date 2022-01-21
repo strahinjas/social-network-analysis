@@ -1,4 +1,7 @@
+# !import networkx as nx
 import networkx as nx
+
+# !import pandas as pd
 import pandas as pd
 
 
@@ -26,9 +29,11 @@ def subreddits_per_user(graph, *data_frames):
             user = row["author"]
             subreddit_to_add = row["subreddit"]
 
-            if (user in result.keys()) and (subreddit_to_add not in result[user]):
-                connect_nodes(result[user], subreddit_to_add)
-                result[user].add(subreddit_to_add)
+            # fixed (?)
+            if user in result.keys():
+                if subreddit_to_add not in result[user]:
+                    connect_nodes(result[user], subreddit_to_add)
+                    result[user].add(subreddit_to_add)
             else:
                 result[user] = {subreddit_to_add}
 
@@ -49,4 +54,4 @@ subreddit_user_map = subreddits_per_user(SNet, submissions, comments)
 for key in subreddit_user_map:
     print(len(subreddit_user_map[key]))
 
-nx.write_pajek(SNet, "models/snet.net")
+nx.write_pajek(SNet, "dataset/models/snet.net")
