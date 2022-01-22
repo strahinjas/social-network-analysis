@@ -1,4 +1,3 @@
-# !import networkx as nx
 import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -40,21 +39,21 @@ def subreddits_per_user(graph, *data_frames):
 
 
 def edge_weight_visualization(graph, threshold):
-    edge_weight = [int(graph.edges[edge]['weight']) for edge in graph.edges]
+    edge_weight = [int(graph.edges[edge]["weight"]) for edge in graph.edges]
 
     edge_weight_keys = list(set(edge_weight))
     edge_weight_keys.sort()
     edge_weight_values = list(map(lambda edge: edge_weight.count(edge), edge_weight_keys))
 
     plt.bar(edge_weight_keys[threshold:], edge_weight_values[threshold:])
-    plt.xlabel('Edge Weight')
-    plt.ylabel('Edge Num')
+    plt.xlabel("Edge Weight")
+    plt.ylabel("Edge Count")
     plt.show()
 
 
 def generate_snet_filtered(graph, threshold):
-    to_remove = [(a, b) for a, b, attrs in graph.edges(data=True) if attrs['weight'] <= threshold]
-    graph.remove_edges_from(to_remove)
+    edges_to_remove = [(a, b) for a, b, attrs in graph.edges(data=True) if attrs["weight"] <= threshold]
+    graph.remove_edges_from(edges_to_remove)
     return graph
 
 
@@ -64,7 +63,7 @@ def generate_snet_target(graph, nodes):
     new_graph = nx.Graph()
     new_graph.add_nodes_from(nodes)
     for a, b, attrs in graph.edges(data=True):
-        new_graph.add_edge(a, b, weight=attrs['weight'])
+        new_graph.add_edge(a, b, weight=attrs["weight"])
     return new_graph
 
 
@@ -81,7 +80,7 @@ def create_networks():
     subreddit_user_map = subreddits_per_user(SNet, submissions, comments)
     nx.write_pajek(SNet, "models/snet.net")
 
-    # SNet = nx.Graph(nx.read_pajek("dataset/models/snet.net"))
+    # SNet = nx.Graph(nx.read_pajek("models/snet.net"))
 
     # SNetF
     w_threshold = 3
@@ -91,13 +90,13 @@ def create_networks():
     nx.write_pajek(SNetF, "models/snetf.net")
 
     # SNetT
-    subreddits_filter = ['reddit.com', 'pics', 'worldnews', 'programming', 'math',
-                        'business', 'politics', 'obama', 'science', 'technology',
-                        'WTF', 'AskReddit', 'netsec', 'philosophy', 'videos', 'offbeat',
-                        'funny', 'entertainment', 'linux', 'geek', 'gaming', 'comics',
-                        'gadgets', 'nsfw', 'news', 'environment', 'atheism', 'canada',
-                        'Economics', 'scifi', 'bestof', 'cogsci', 'joel', 'Health',
-                        'guns', 'photography', 'software', 'history', 'ideas']
+    subreddits_filter = ["reddit.com", "pics", "worldnews", "programming", "math",
+                         "business", "politics", "obama", "science", "technology",
+                         "WTF", "AskReddit", "netsec", "philosophy", "videos", "offbeat",
+                         "funny", "entertainment", "linux", "geek", "gaming", "comics",
+                         "gadgets", "nsfw", "news", "environment", "atheism", "canada",
+                         "Economics", "scifi", "bestof", "cogsci", "joel", "Health",
+                         "guns", "photography", "software", "history", "ideas"]
 
     SNetT = generate_snet_target(SNet, subreddits_filter)
     nx.write_pajek(SNetT, "models/snett.net")
