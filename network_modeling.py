@@ -12,8 +12,8 @@ def set_from_column(column, *data_frames):
     return result
 
 
-def subreddits_per_user(graph, *data_frames):
-    result = {}
+def connect_subreddits(graph, *data_frames):
+    user_map = {}
 
     def connect_nodes(subreddit_set, new_subreddit):
         for subreddit in subreddit_set:
@@ -28,14 +28,12 @@ def subreddits_per_user(graph, *data_frames):
             subreddit_to_add = row["subreddit"]
 
             # fixed (?)
-            if user in result.keys():
-                if subreddit_to_add not in result[user]:
-                    connect_nodes(result[user], subreddit_to_add)
-                    result[user].add(subreddit_to_add)
+            if user in user_map.keys():
+                if subreddit_to_add not in user_map[user]:
+                    connect_nodes(user_map[user], subreddit_to_add)
+                    user_map[user].add(subreddit_to_add)
             else:
-                result[user] = {subreddit_to_add}
-
-    return result
+                user_map[user] = {subreddit_to_add}
 
 
 def edge_weight_visualization(graph, threshold):
@@ -52,19 +50,51 @@ def edge_weight_visualization(graph, threshold):
 
 
 def generate_snet_filtered(graph, threshold):
-    edges_to_remove = [(a, b) for a, b, attrs in graph.edges(data=True) if attrs["weight"] <= threshold]
-    graph.remove_edges_from(edges_to_remove)
-    return graph
+    filtered_graph = nx.Graph(graph)
+
+    edges_to_remove = [(a, b) for a, b, attrs in filtered_graph.edges(data=True) if attrs["weight"] <= threshold]
+    filtered_graph.remove_edges_from(edges_to_remove)
+
+    return filtered_graph
 
 
 def generate_snet_target(graph, nodes):
-    nodes_to_remove = [node for node in graph.nodes if node not in nodes]
-    graph.remove_nodes_from(nodes_to_remove)
-    new_graph = nx.Graph()
-    new_graph.add_nodes_from(nodes)
+    target_graph = nx.Graph()
+    target_graph.add_nodes_from([f"\"{node}\"" for node in nodes])
+
     for a, b, attrs in graph.edges(data=True):
-        new_graph.add_edge(a, b, weight=attrs["weight"])
-    return new_graph
+        target_graph.add_edge(a, b, weight=attrs["weight"])
+
+    return target_graph
+
+
+# noinspection PyBroadException
+def connect_users(graph, submissions, comments):
+    user_map = {}
+
+    for index, row in comments.iterrows():
+        user = row["author"]
+        submission_id = row["link_id"][3:]
+        parent_id = row["parent_id"][3:]
+
+        try:
+            if submission_id == parent_id:
+                author = submissions[submissions["submission_id"] == submission_id]["author"].iloc[0]
+            else:
+                author = comments[comments["comment_id"] == parent_id]["author"].iloc[0]
+        except:
+            continue
+
+        if user in user_map.keys():
+            if parent_id not in user_map[user]:
+                user_map[user].add(parent_id)
+                if (user, author) in graph.edges:
+                    graph.edges[user, author]["weight"] += 1
+                else:
+                    graph.add_edge(user, author, weight=1)
+        else:
+            user_map[user] = {parent_id}
+            graph.add_edge(user, author, weight=1)
 
 
 def create_networks():
@@ -74,20 +104,21 @@ def create_networks():
     users = set_from_column("author", submissions, comments)
     subreddits = set_from_column("subreddit", submissions, comments)
 
+    print(f"Number of users: {len(users)}")
+    print(f"Number of subreddits: {len(subreddits)}")
+
     # SNet
     SNet = nx.Graph()
     SNet.add_nodes_from(subreddits)
-    subreddit_user_map = subreddits_per_user(SNet, submissions, comments)
-    nx.write_pajek(SNet, "models/snet.net")
-
-    # SNet = nx.Graph(nx.read_pajek("models/snet.net"))
+    connect_subreddits(SNet, submissions, comments)
+    nx.write_gml(SNet, "models/snet.gml")
 
     # SNetF
     w_threshold = 3
     edge_weight_visualization(SNet, w_threshold)
 
     SNetF = generate_snet_filtered(SNet, w_threshold)
-    nx.write_pajek(SNetF, "models/snetf.net")
+    nx.write_gml(SNetF, "models/snetf.gml")
 
     # SNetT
     subreddits_filter = ["reddit.com", "pics", "worldnews", "programming", "math",
@@ -99,7 +130,13 @@ def create_networks():
                          "guns", "photography", "software", "history", "ideas"]
 
     SNetT = generate_snet_target(SNet, subreddits_filter)
-    nx.write_pajek(SNetT, "models/snett.net")
+    nx.write_gml(SNetT, "models/snett.gml")
+
+    # UserNet
+    UserNet = nx.DiGraph()
+    UserNet.add_nodes_from(users)
+    connect_users(UserNet, submissions, comments)
+    nx.write_gml(UserNet, "models/usernet.gml")
 
 
 create_networks()
