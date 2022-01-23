@@ -24,14 +24,21 @@ def clean_data(data_frame, columns_to_drop, name_id):
     data_frame.reset_index(drop=True, inplace=True)
     data_frame["id"] = data_frame.index
 
+    return data_frame
+
+
+def remove_unlinked_comments(submissions, comments):
+    comments = comments[comments["link_id"].str.slice(3).isin(submissions["submission_id"].unique())]
+    comments.reset_index(drop=True, inplace=True)
+    comments["id"] = comments.index
+    return comments
+
+
+def export_cleaned_data(data_frame, filename):
     print(data_frame.dtypes)
     print(data_frame)
     print(data_frame.shape)
 
-    return data_frame
-
-
-def export_cleaned_data(data_frame, filename):
     data_frame.to_csv(f"dataset/cleaned/{filename}.csv", index=False)
     data_frame.to_pickle(f"dataset/cleaned/{filename}")
 
@@ -48,6 +55,7 @@ def prepare_data():
 
     comments = read_data(comments_path)
     comments = clean_data(comments, comments_columns, "comment_id")
+    comments = remove_unlinked_comments(submissions, comments)
 
     export_cleaned_data(submissions, "submissions")
     export_cleaned_data(comments, "comments")
