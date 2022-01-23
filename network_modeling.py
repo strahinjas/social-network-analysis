@@ -27,7 +27,6 @@ def connect_subreddits(graph, *data_frames):
             user = row["author"]
             subreddit_to_add = row["subreddit"]
 
-            # fixed (?)
             if user in user_map.keys():
                 if subreddit_to_add not in user_map[user]:
                     connect_nodes(user_map[user], subreddit_to_add)
@@ -60,7 +59,7 @@ def generate_snet_filtered(graph, threshold):
 
 def generate_snet_target(graph, nodes):
     target_graph = nx.Graph()
-    target_graph.add_nodes_from([f"\"{node}\"" for node in nodes])
+    target_graph.add_nodes_from(nodes)
 
     for a, b, attrs in graph.edges(data=True):
         target_graph.add_edge(a, b, weight=attrs["weight"])
@@ -112,6 +111,7 @@ def create_networks():
     SNet.add_nodes_from(subreddits)
     connect_subreddits(SNet, submissions, comments)
     nx.write_gml(SNet, "models/snet.gml")
+    print("Generated SNet - Subreddit Network")
 
     # SNetF
     w_threshold = 3
@@ -119,6 +119,7 @@ def create_networks():
 
     SNetF = generate_snet_filtered(SNet, w_threshold)
     nx.write_gml(SNetF, "models/snetf.gml")
+    print("Generated SNetF - Filtered Subreddit Network")
 
     # SNetT
     subreddits_filter = ["reddit.com", "pics", "worldnews", "programming", "math",
@@ -131,12 +132,14 @@ def create_networks():
 
     SNetT = generate_snet_target(SNet, subreddits_filter)
     nx.write_gml(SNetT, "models/snett.gml")
+    print("Generated SNetT - Targeted Subreddit Network")
 
     # UserNet
-    UserNet = nx.DiGraph()
-    UserNet.add_nodes_from(users)
-    connect_users(UserNet, submissions, comments)
-    nx.write_gml(UserNet, "models/usernet.gml")
+    # UserNet = nx.DiGraph()
+    # UserNet.add_nodes_from(users)
+    # connect_users(UserNet, submissions, comments)
+    # nx.write_gml(UserNet, "models/usernet.gml")
+    # print("Generated UserNet - Reddit User Network")
 
 
 create_networks()
