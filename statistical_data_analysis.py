@@ -1,4 +1,6 @@
+import matplotlib.pyplot as plt
 import pandas as pd
+from scipy.stats import pearsonr
 
 
 def set_from_column(column, *data_frames):
@@ -27,11 +29,32 @@ def user_count(data_frame):
     return grouped_data_frame
 
 
-def comment_count(submissions, comments):
-    grouped_comments = comments.groupby("link_id").size().reset_index(name="count")
+def pearson_correlation(submissions_data_frame, comments_data_frame):
+    grouped_submissions = submissions_data_frame.groupby("author").size().reset_index(name="submission_count")
+    grouped_comments = comments_data_frame.groupby("author").size().reset_index(name="comment_count")
+
+    result = pd.concat([grouped_submissions.set_index("author"), grouped_comments.set_index("author")],
+                       axis=1, join="outer").reset_index()
+
+    result = result.fillna(0)
+
+    plt.scatter(result["submission_count"], result["comment_count"])
+
+    corr, _ = pearsonr(result["submission_count"], result["comment_count"])
+    print("Pearson correlation coefficient: %.5f" % corr)
+
+    plt.title("Pearson correlation coefficient: %.5f" % corr)
+    plt.xlabel("Submission Count")
+    plt.ylabel("Comment Count")
+
+    plt.savefig(fname="figures/pearson.png")
+
+
+def comment_count(submissions_data_frame, comments_data_frame):
+    grouped_comments = comments_data_frame.groupby("link_id").size().reset_index(name="count")
     grouped_comments["link_id"] = grouped_comments["link_id"].str.slice(3)
 
-    result = pd.concat([submissions.set_index("submission_id"), grouped_comments.set_index("link_id")],
+    result = pd.concat([submissions_data_frame.set_index("submission_id"), grouped_comments.set_index("link_id")],
                        axis=1, join="inner").reset_index()
 
     return result.sort_values("count", ascending=False)
@@ -54,6 +77,8 @@ print(f"Users with most comments:\n{user_count(comments).iloc[0:10]}\n")
 
 print(f"Most active users:\n{groupby_and_count('author', 'subreddit', submissions, comments).iloc[0:10]}\n")
 
-print("Submissions with most comments:")
+pearson_correlation(submissions, comments)
+
+print("\nSubmissions with most comments:")
 with pd.option_context("display.max_rows", None, "display.max_columns", None):
     print(comment_count(submissions, comments).iloc[0:10])

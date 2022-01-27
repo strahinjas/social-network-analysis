@@ -43,9 +43,13 @@ def edge_weight_visualization(graph, threshold):
     edge_weight_values = list(map(lambda edge: edge_weight.count(edge), edge_weight_keys))
 
     plt.bar(edge_weight_keys[threshold:], edge_weight_values[threshold:])
+
+    plt.title("Edge Weight Distribution")
     plt.xlabel("Edge Weight")
     plt.ylabel("Edge Count")
+
     plt.show()
+    plt.savefig("figures/edge_weight.png")
 
 
 def generate_snet_filtered(graph, threshold):
