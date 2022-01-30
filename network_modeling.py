@@ -35,6 +35,23 @@ def connect_subreddits(graph, *data_frames):
                 user_map[user] = {subreddit_to_add}
 
 
+def generate_snet():
+    submissions = pd.read_pickle("dataset/cleaned/submissions")
+    comments = pd.read_pickle("dataset/cleaned/comments")
+
+    subreddits = set_from_column("subreddit", submissions, comments)
+
+    SNet = nx.Graph()
+    SNet.add_nodes_from(subreddits)
+
+    connect_subreddits(SNet, submissions, comments)
+
+    nx.write_gml(SNet, "models/snet.gml")
+    print("Generated SNet - Subreddit Network")
+
+    return SNet
+
+
 def edge_weight_visualization(graph, threshold):
     edge_weight = [int(graph.edges[edge]["weight"]) for edge in graph.edges]
 
@@ -42,33 +59,51 @@ def edge_weight_visualization(graph, threshold):
     edge_weight_keys.sort()
     edge_weight_values = list(map(lambda edge: edge_weight.count(edge), edge_weight_keys))
 
-    plt.bar(edge_weight_keys[threshold:], edge_weight_values[threshold:])
+    fig, axs = plt.subplots(1, 2)
 
-    plt.title("Edge Weight Distribution")
-    plt.xlabel("Edge Weight")
-    plt.ylabel("Edge Count")
+    for ax in axs.flat:
+        ax.set(xlabel="Edge Weight", ylabel="Edge Count")
+
+    axs[0].plot(edge_weight_keys, edge_weight_values)
+    axs[0].set_title("Edge Weight Distribution")
+    axs[1].plot(edge_weight_keys[threshold:], edge_weight_values[threshold:])
+    axs[1].set_title("Filtered Edge Weight Distribution")
 
     plt.show()
-    plt.savefig("figures/edge_weight.png")
+    fig.savefig("figures/edge_weight.png")
 
 
 def generate_snet_filtered(graph, threshold):
-    filtered_graph = nx.Graph(graph)
+    SNetF = nx.Graph(graph)
 
-    edges_to_remove = [(a, b) for a, b, attrs in filtered_graph.edges(data=True) if attrs["weight"] <= threshold]
-    filtered_graph.remove_edges_from(edges_to_remove)
+    print(f"Number of edges before filtration: {SNetF.number_of_edges()}")
 
-    return filtered_graph
+    edges_to_remove = [(a, b) for a, b, attrs in SNetF.edges(data=True) if attrs["weight"] <= threshold]
+    SNetF.remove_edges_from(edges_to_remove)
+
+    print(f"Number of edges after filtration: {SNetF.number_of_edges()}")
+
+    nx.write_gml(SNetF, "models/snetf.gml")
+    print("Generated SNetF - Filtered Subreddit Network")
+
+    return SNetF
 
 
 def generate_snet_target(graph, nodes):
-    target_graph = nx.Graph()
-    target_graph.add_nodes_from(nodes)
+    print(f"Complete number of subreddits: {graph.number_of_nodes()}")
+    print(f"Number of subreddits related to economic crisis: {len(nodes)}")
+
+    SNetT = nx.Graph()
+    SNetT.add_nodes_from(nodes)
 
     for a, b, attrs in graph.edges(data=True):
-        target_graph.add_edge(a, b, weight=attrs["weight"])
+        if a in nodes and b in nodes:
+            SNetT.add_edge(a, b, weight=attrs["weight"])
 
-    return target_graph
+    nx.write_gml(SNetT, "models/snett.gml")
+    print("Generated SNetT - Targeted Subreddit Network")
+
+    return SNetT
 
 
 # noinspection PyBroadException
@@ -100,50 +135,45 @@ def connect_users(graph, submissions, comments):
             graph.add_edge(user, author, weight=1)
 
 
-def create_networks():
+def generate_user_network():
     submissions = pd.read_pickle("dataset/cleaned/submissions")
     comments = pd.read_pickle("dataset/cleaned/comments")
 
     users = set_from_column("author", submissions, comments)
-    subreddits = set_from_column("subreddit", submissions, comments)
 
-    print(f"Number of users: {len(users)}")
-    print(f"Number of subreddits: {len(subreddits)}")
+    UserNet = nx.DiGraph()
+    UserNet.add_nodes_from(users)
 
-    # SNet
-    SNet = nx.Graph()
-    SNet.add_nodes_from(subreddits)
-    connect_subreddits(SNet, submissions, comments)
-    nx.write_gml(SNet, "models/snet.gml")
-    print("Generated SNet - Subreddit Network")
+    connect_users(UserNet, submissions, comments)
 
-    # SNetF
-    w_threshold = 3
-    edge_weight_visualization(SNet, w_threshold)
+    nx.write_gml(UserNet, "models/usernet.gml")
+    print("Generated UserNet - Reddit User Network")
 
-    SNetF = generate_snet_filtered(SNet, w_threshold)
-    nx.write_gml(SNetF, "models/snetf.gml")
-    print("Generated SNetF - Filtered Subreddit Network")
-
-    # SNetT
-    subreddits_filter = ["reddit.com", "pics", "worldnews", "programming", "math",
-                         "business", "politics", "obama", "science", "technology",
-                         "WTF", "AskReddit", "netsec", "philosophy", "videos", "offbeat",
-                         "funny", "entertainment", "linux", "geek", "gaming", "comics",
-                         "gadgets", "nsfw", "news", "environment", "atheism", "canada",
-                         "Economics", "scifi", "bestof", "cogsci", "joel", "Health",
-                         "guns", "photography", "software", "history", "ideas"]
-
-    SNetT = generate_snet_target(SNet, subreddits_filter)
-    nx.write_gml(SNetT, "models/snett.gml")
-    print("Generated SNetT - Targeted Subreddit Network")
-
-    # UserNet
-    # UserNet = nx.DiGraph()
-    # UserNet.add_nodes_from(users)
-    # connect_users(UserNet, submissions, comments)
-    # nx.write_gml(UserNet, "models/usernet.gml")
-    # print("Generated UserNet - Reddit User Network")
+    return UserNet
 
 
-create_networks()
+def create_networks(networks):
+    SNet = generate_snet() if "SNet" in networks else nx.read_gml("models/snet.gml")
+
+    if "SNetF" in networks:
+        w_threshold = 20
+        edge_weight_visualization(SNet, w_threshold)
+
+        generate_snet_filtered(SNet, w_threshold)
+
+    if "SNetT" in networks:
+        subreddits_filter = ["reddit.com", "pics", "worldnews", "programming", "math",
+                             "business", "politics", "obama", "science", "technology",
+                             "WTF", "AskReddit", "netsec", "philosophy", "videos", "offbeat",
+                             "funny", "entertainment", "linux", "geek", "gaming", "comics",
+                             "gadgets", "nsfw", "news", "environment", "atheism", "canada",
+                             "Economics", "scifi", "bestof", "cogsci", "joel", "Health",
+                             "guns", "photography", "software", "history", "ideas"]
+
+        generate_snet_target(SNet, subreddits_filter)
+
+    if "UserNet" in networks:
+        generate_user_network()
+
+
+create_networks(["SNetT"])
