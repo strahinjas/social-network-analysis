@@ -3,15 +3,6 @@ import pandas as pd
 from scipy.stats import pearsonr
 
 
-def set_from_column(column, *data_frames):
-    result = set()
-
-    for data_frame in data_frames:
-        result |= set(data_frame[column].unique())
-
-    return result
-
-
 def groupby_and_count(groupby_column, aggregate_column, *data_frames):
     data_frame = pd.concat(data_frames, ignore_index=True)
 
@@ -50,35 +41,63 @@ def pearson_correlation(submissions_data_frame, comments_data_frame):
     plt.savefig(fname="figures/pearson.png")
 
 
-def comment_count(submissions_data_frame, comments_data_frame):
-    grouped_comments = comments_data_frame.groupby("link_id").size().reset_index(name="count")
+def comment_count(submissions, comments):
+    grouped_comments = comments.groupby("link_id").size().reset_index(name="count")
     grouped_comments["link_id"] = grouped_comments["link_id"].str.slice(3)
 
-    result = pd.concat([submissions_data_frame.set_index("submission_id"), grouped_comments.set_index("link_id")],
+    result = pd.concat([submissions.set_index("submission_id"), grouped_comments.set_index("link_id")],
                        axis=1, join="inner").reset_index()
 
     return result.sort_values("count", ascending=False)
 
 
-submissions = pd.read_pickle("dataset/cleaned/submissions")
-comments = pd.read_pickle("dataset/cleaned/comments")
+def subreddit_analysis(submissions, comments):
+    subreddits = groupby_and_count("subreddit", "author", submissions, comments)
 
-subreddits = groupby_and_count("subreddit", "author", submissions, comments)
+    print(f"Number of subreddits: {len(subreddits)}\n")
 
-print(f"Number of subreddits: {len(subreddits)}\n")
+    most_users = subreddits.iloc[0:10]
+    print(f"Subreddits with most users:\n{most_users}\n")
+    most_users.to_csv("result_tables/subreddit_most_users.csv")
 
-print(f"Subreddits with most users:\n{subreddits.iloc[0:10]}\n")
-print(f"Subreddits with most comments:\n{comments['subreddit'].value_counts().iloc[0:10]}\n")
+    most_comments = comments['subreddit'].value_counts().iloc[0:10]
+    print(f"Subreddits with most comments:\n{most_comments}\n")
+    most_comments.to_csv("result_tables/subreddit_most_comments.csv")
 
-print(f"Average users per subreddit: {subreddits['author'].mean()}\n")
+    print(f"Average users per subreddit: %.5f\n" % subreddits['author'].mean())
 
-print(f"Users with most submissions:\n{user_count(submissions).iloc[0:10]}\n")
-print(f"Users with most comments:\n{user_count(comments).iloc[0:10]}\n")
 
-print(f"Most active users:\n{groupby_and_count('author', 'subreddit', submissions, comments).iloc[0:10]}\n")
+def user_analysis(submissions, comments):
+    most_submissions = user_count(submissions).iloc[0:10]
+    print(f"Users with most submissions:\n{user_count(submissions).iloc[0:10]}\n")
+    most_submissions.to_csv("result_tables/user_most_submissions.csv")
 
-pearson_correlation(submissions, comments)
+    most_comments = user_count(comments).iloc[0:10]
+    print(f"Users with most comments:\n{user_count(comments).iloc[0:10]}\n")
+    most_comments.to_csv("result_tables/user_most_comments.csv")
 
-print("\nSubmissions with most comments:")
-with pd.option_context("display.max_rows", None, "display.max_columns", None):
-    print(comment_count(submissions, comments).iloc[0:10])
+    most_active_users = groupby_and_count('author', 'subreddit', submissions, comments).iloc[0:10]
+    print(f"Most active users:\n{most_active_users}\n")
+    most_active_users.to_csv("result_tables/most_active_users.csv")
+
+    pearson_correlation(submissions, comments)
+
+
+def submission_analysis(submissions, comments):
+    print("\nSubmissions with most comments:")
+    with pd.option_context("display.max_rows", None, "display.max_columns", None):
+        submission_most_comments = comment_count(submissions, comments).iloc[0:10]
+        print(submission_most_comments)
+        submission_most_comments.to_csv("result_tables/submission_most_comments.csv")
+
+
+def analyze():
+    submissions = pd.read_pickle("dataset/cleaned/submissions")
+    comments = pd.read_pickle("dataset/cleaned/comments")
+
+    subreddit_analysis(submissions, comments)
+    user_analysis(submissions, comments)
+    submission_analysis(submissions, comments)
+
+
+analyze()

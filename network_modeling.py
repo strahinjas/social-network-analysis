@@ -108,31 +108,27 @@ def generate_snet_target(graph, nodes):
 
 # noinspection PyBroadException
 def connect_users(graph, submissions, comments):
-    user_map = {}
+    comments["link_id"] = comments["link_id"].str.slice(3)
+    comments["parent_id"] = comments["parent_id"].str.slice(3)
 
-    for index, row in comments.iterrows():
-        user = row["author"]
-        submission_id = row["link_id"][3:]
-        parent_id = row["parent_id"][3:]
+    result1 = submissions.merge(comments, how="inner", left_on="submission_id", right_on="link_id")
+    result2 = comments.merge(comments, how="inner", left_on="parent_id", right_on="comment_id")
 
-        try:
-            if submission_id == parent_id:
-                author = submissions[submissions["submission_id"] == submission_id]["author"].iloc[0]
-            else:
-                author = comments[comments["comment_id"] == parent_id]["author"].iloc[0]
-        except:
-            continue
+    result1 = result1.groupby(["author_x", "author_y"]).size().reset_index().rename(columns={0: "weight"})
+    result2 = result2.groupby(["author_x", "author_y"]).size().reset_index().rename(columns={0: "weight"})
 
-        if user in user_map.keys():
-            if parent_id not in user_map[user]:
-                user_map[user].add(parent_id)
-                if (user, author) in graph.edges:
-                    graph.edges[user, author]["weight"] += 1
-                else:
-                    graph.add_edge(user, author, weight=1)
-        else:
-            user_map[user] = {parent_id}
-            graph.add_edge(user, author, weight=1)
+    result1 = result1[result1["author_x"] != result1["author_y"]]
+    result2 = result2[result2["author_x"] != result2["author_y"]]
+
+    result = pd.merge(result1, result2, how="inner", left_on=["author_x", "author_y"], right_on=["author_x", "author_y"])
+
+    result = result.fillna(0.0)
+    result["weight"] = result["weight_x"] + result["weight_y"]
+
+    print(result)
+
+    for _, row in result.iterrows():
+        graph.add_edge(row["author_y"], row["author_x"], weight=row["weight"])
 
 
 def generate_user_network():
@@ -142,7 +138,7 @@ def generate_user_network():
     users = set_from_column("author", submissions, comments)
 
     UserNet = nx.DiGraph()
-    UserNet.add_nodes_from(users)
+    # UserNet.add_nodes_from(users)
 
     connect_users(UserNet, submissions, comments)
 
@@ -176,4 +172,4 @@ def create_networks(networks):
         generate_user_network()
 
 
-create_networks(["SNetT"])
+create_networks(["UserNet"])
