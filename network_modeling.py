@@ -69,8 +69,8 @@ def edge_weight_visualization(graph, threshold):
     axs[1].plot(edge_weight_keys[threshold:], edge_weight_values[threshold:])
     axs[1].set_title("Filtered Edge Weight Distribution")
 
+    plt.savefig("figures/edge_weight.png")
     plt.show()
-    fig.savefig("figures/edge_weight.png")
 
 
 def generate_snet_filtered(graph, threshold):
@@ -120,7 +120,8 @@ def connect_users(graph, submissions, comments):
     result1 = result1[result1["author_x"] != result1["author_y"]]
     result2 = result2[result2["author_x"] != result2["author_y"]]
 
-    result = pd.merge(result1, result2, how="inner", left_on=["author_x", "author_y"], right_on=["author_x", "author_y"])
+    result = pd.merge(result1, result2, how="inner",
+                      left_on=["author_x", "author_y"], right_on=["author_x", "author_y"])
 
     result = result.fillna(0.0)
     result["weight"] = result["weight_x"] + result["weight_y"]
@@ -135,11 +136,7 @@ def generate_user_network():
     submissions = pd.read_pickle("dataset/cleaned/submissions")
     comments = pd.read_pickle("dataset/cleaned/comments")
 
-    users = set_from_column("author", submissions, comments)
-
     UserNet = nx.DiGraph()
-    # UserNet.add_nodes_from(users)
-
     connect_users(UserNet, submissions, comments)
 
     nx.write_gml(UserNet, "models/usernet.gml")
