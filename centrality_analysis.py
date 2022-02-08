@@ -34,7 +34,7 @@ def eigenvector_centrality(graph):
 
 def katz_centrality(graph):
     lambda_max = max(nx.adjacency_spectrum(graph))
-    print(f"Alpha < {1 / lambda_max}")
+    print(f"alpha < {1 / lambda_max}")
 
 
 def analyze():
