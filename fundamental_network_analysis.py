@@ -122,13 +122,15 @@ def analyze():
     graph_names = ["SNet", "SNetF", "SNetT", "UserNet"]
 
     for graph, graph_name in zip(graphs, graph_names):
-        print(f"Network {graph_name}:")
+        print(f"Network {graph_name}...")
 
         clustering_coefficient_calculation(graph, graph_name, [None, "weight"])
         # small_world(graph)
         assortativity_analysis(graph)
         rich_club(graph, graph_name)
         degree_distribution(graph, graph_name)
+
+        print()
 
 
 analyze()
