@@ -16,11 +16,17 @@ def calculate_centrality(graph, centrality_type, graph_name):
     data_frame = data_frame.head(10)
     data_frame.to_csv(f"result_tables/{graph_name}_{centrality_type}.csv".lower())
 
+    return centrality
+
 
 def calculate_centralities(graph, graph_name):
-    calculate_centrality(graph, "DC", graph_name)
-    calculate_centrality(graph, "CC", graph_name)
-    calculate_centrality(graph, "BC", graph_name)
+    centralities = dict()
+
+    centralities["DC"] = calculate_centrality(graph, "DC", graph_name)
+    centralities["CC"] = calculate_centrality(graph, "CC", graph_name)
+    centralities["BC"] = calculate_centrality(graph, "BC", graph_name)
+
+    return centralities
 
 
 def eigenvector_centrality(graph, graph_name):
@@ -30,6 +36,8 @@ def eigenvector_centrality(graph, graph_name):
     data_frame.sort_values(by="EVC", ascending=False, inplace=True)
     data_frame = data_frame.head(10)
     data_frame.to_csv(f"result_tables/{graph_name}_EVC.csv".lower())
+
+    return centrality
 
 
 def katz_centrality(graph, graph_name):
@@ -47,12 +55,26 @@ def katz_centrality(graph, graph_name):
         data_frame = data_frame.head(10)
         data_frame.to_csv(file_name.lower())
 
-    katz(1.0, f"result_tables/{graph_name}_katz.csv")
+        return centrality
+
+    result = katz(1.0, f"result_tables/{graph_name}_katz.csv")
 
     if target_subreddit in graph:
         beta_map = dict([(node, 1e6 if node == target_subreddit else 1.0) for node in graph])
 
         katz(beta_map, f"result_tables/{graph_name}_katz_modified.csv")
+
+    return result
+
+
+def composite_centrality(graph, graph_name, centralities):
+    if graph.is_directed():
+        # TODO: Composite centrality for directed network
+        pass
+    else:
+        # TODO: Composite centrality for undirected network
+        pass
+    return
 
 
 def analyze():
@@ -68,9 +90,11 @@ def analyze():
     for graph, graph_name in zip(graphs, graph_names):
         print(f"Network {graph_name}...")
 
-        # calculate_centralities(graph, graph_name)
-        # eigenvector_centrality(graph, graph_name)
-        katz_centrality(graph, graph_name)
+        centralities = calculate_centralities(graph, graph_name)
+        centralities["EVC"] = eigenvector_centrality(graph, graph_name)
+        centralities["Katz"] = katz_centrality(graph, graph_name)
+
+        composite_centrality(graph, graph_name, centralities)
 
         print()
 

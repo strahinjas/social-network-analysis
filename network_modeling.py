@@ -35,7 +35,7 @@ def connect_subreddits(graph, *data_frames):
                 user_map[user] = {subreddit_to_add}
 
 
-def generate_snet():
+def generate_snet(target_nodes):
     submissions = pd.read_pickle("dataset/cleaned/submissions")
     comments = pd.read_pickle("dataset/cleaned/comments")
 
@@ -43,6 +43,9 @@ def generate_snet():
 
     SNet = nx.Graph()
     SNet.add_nodes_from(subreddits)
+
+    attribute_map = dict([(node, node in target_nodes) for node in SNet])
+    nx.set_node_attributes(SNet, attribute_map, "target")
 
     connect_subreddits(SNet, submissions, comments)
 
@@ -89,15 +92,15 @@ def generate_snet_filtered(graph, threshold):
     return SNetF
 
 
-def generate_snet_target(graph, nodes):
+def generate_snet_target(graph, target_nodes):
     print(f"Complete number of subreddits: {graph.number_of_nodes()}")
-    print(f"Number of subreddits related to economic crisis: {len(nodes)}")
+    print(f"Number of subreddits related to economic crisis: {len(target_nodes)}")
 
     SNetT = nx.Graph()
-    SNetT.add_nodes_from(nodes)
+    SNetT.add_nodes_from(target_nodes)
 
     for a, b, attrs in graph.edges(data=True):
-        if a in nodes and b in nodes:
+        if a in target_nodes and b in target_nodes:
             SNetT.add_edge(a, b, weight=attrs["weight"])
 
     nx.write_gml(SNetT, "models/snett.gml")
@@ -146,7 +149,15 @@ def generate_user_network():
 
 
 def create_networks(networks):
-    SNet = generate_snet() if "SNet" in networks else nx.read_gml("models/snet.gml")
+    subreddit_filter = ["reddit.com", "pics", "worldnews", "programming", "math",
+                        "business", "politics", "obama", "science", "technology",
+                        "WTF", "AskReddit", "netsec", "philosophy", "videos", "offbeat",
+                        "funny", "entertainment", "linux", "geek", "gaming", "comics",
+                        "gadgets", "nsfw", "news", "environment", "atheism", "canada",
+                        "Economics", "scifi", "bestof", "cogsci", "joel", "Health",
+                        "guns", "photography", "software", "history", "ideas"]
+
+    SNet = generate_snet(subreddit_filter) if "SNet" in networks else nx.read_gml("models/snet.gml")
 
     if "SNetF" in networks:
         w_threshold = 20
@@ -155,18 +166,10 @@ def create_networks(networks):
         generate_snet_filtered(SNet, w_threshold)
 
     if "SNetT" in networks:
-        subreddits_filter = ["reddit.com", "pics", "worldnews", "programming", "math",
-                             "business", "politics", "obama", "science", "technology",
-                             "WTF", "AskReddit", "netsec", "philosophy", "videos", "offbeat",
-                             "funny", "entertainment", "linux", "geek", "gaming", "comics",
-                             "gadgets", "nsfw", "news", "environment", "atheism", "canada",
-                             "Economics", "scifi", "bestof", "cogsci", "joel", "Health",
-                             "guns", "photography", "software", "history", "ideas"]
-
-        generate_snet_target(SNet, subreddits_filter)
+        generate_snet_target(SNet, subreddit_filter)
 
     if "UserNet" in networks:
         generate_user_network()
 
 
-create_networks(["UserNet"])
+create_networks(["SNet"])

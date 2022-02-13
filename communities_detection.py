@@ -1,10 +1,11 @@
 import networkx as nx
+import pandas as pd
 import matplotlib.pyplot as plt
 from itertools import chain, combinations
 from scipy.cluster.hierarchy import dendrogram
 
 
-def dendrogram_create(graph, graph_name):
+def create_dendrogram(graph, graph_name):
 
     communities = list(nx.community.girvan_newman(graph))
     print(communities)
@@ -93,21 +94,42 @@ def dendrogram_create(graph, graph_name):
     plt.savefig(f"figures/dendrogram_{graph_name}.png")
 
 
-def create_dendrograms():
+def find_brokers(graph, graph_name):
+    # broker -> high betweenness centrality + low network constraint
+    centrality = nx.betweenness_centrality(graph, weight="weight")
+    constraint = nx.constraint(graph, weight="weight")
+
+    broker_coefficient = dict()
+
+    for node in centrality:
+        broker_coefficient[node] = centrality[node] + (1.0 - constraint[node])
+
+    data_frame = pd.DataFrame.from_dict(broker_coefficient, orient="index", columns=["Broker Coefficient"])
+
+    data_frame.sort_values(by="Broker Coefficient", ascending=False, inplace=True)
+    data_frame = data_frame.head(10)
+    data_frame.to_csv(f"result_tables/{graph_name}_brokers.csv".lower())
+
+
+def analyze():
     SNet = nx.read_gml("models/snet.gml")
     SNetF = nx.read_gml("models/snetf.gml")
     SNetT = nx.read_gml("models/snett.gml")
     UserNet = nx.read_gml("models/usernet.gml")
 
-    graphs = [SNetF]
-    # graphs = [SNet, SNetF, SNetT, UserNet]
+    # graphs = [SNetT]
+    graphs = [SNet, SNetF, SNetT, UserNet]
 
-    graph_names = ["SNetF"]
-    # graph_names = ["SNet", "SNetF", "SNetT", "UserNet"]
+    # graph_names = ["SNetT"]
+    graph_names = ["SNet", "SNetF", "SNetT", "UserNet"]
 
     for graph, graph_name in zip(graphs, graph_names):
         print(f"Network {graph_name}...")
-        dendrogram_create(graph, graph_name)
+
+        # create_dendrogram(graph, graph_name)
+        find_brokers(graph, graph_name)
+
+        print()
 
 
-create_dendrograms()
+analyze()
