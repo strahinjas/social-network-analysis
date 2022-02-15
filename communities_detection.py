@@ -1,14 +1,16 @@
 import networkx as nx
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from itertools import chain, combinations
 from scipy.cluster.hierarchy import dendrogram
+from sklearn.cluster import SpectralClustering
 
 
 def create_dendrogram(graph, graph_name):
-
     communities = list(nx.community.girvan_newman(graph))
     print(communities)
+
     # building initial dict of node_id to each possible subset:
     node_id = 0
     init_node2community_dict = {node_id: communities[0][0].union(communities[0][1])}
@@ -94,17 +96,51 @@ def create_dendrogram(graph, graph_name):
     plt.savefig(f"figures/dendrogram_{graph_name}.png")
 
 
+def spectral_clustering(graph, graph_name):
+    np.set_printoptions(precision=0, suppress=True)
+
+    for k in range(2, 30):
+        clustering = SpectralClustering(n_clusters=k, assign_labels="discretize", affinity="precomputed")\
+            .fit(nx.adjacency_matrix(graph))
+
+        colors = clustering.labels_
+
+        color_labels = []
+        cluster_sizes = np.zeros(k)
+
+        for color in colors:
+            color_labels.append(str(color))
+            cluster_sizes[int(color)] += 1
+
+        colored_graph = nx.Graph()
+        for color, node in zip(color_labels, graph.nodes()):
+            colored_graph.add_node(node, color=color)
+
+        for edge in graph.edges(data=True):
+            colored_graph.add_edge(edge[0], edge[1], weight=edge[2]['weight'])
+
+        nx.write_gml(colored_graph, f"models/spectral/{graph_name}/{graph_name}_spectral_{k}.gml".lower())
+
+        print(f"{k:2}-means clustering: components' sizes {cluster_sizes}")
+
+
 def find_brokers(graph, graph_name):
     # broker -> high betweenness centrality + low network constraint
     centrality = nx.betweenness_centrality(graph, weight="weight")
-    constraint = nx.constraint(graph, weight="weight")
+
+    if graph.number_of_edges() < 100_000:
+        constraint = nx.constraint(graph, weight="weight")
+    else:
+        constraint = dict([(node, 1.0) for node in graph])
 
     broker_coefficient = dict()
 
     for node in centrality:
         broker_coefficient[node] = centrality[node] + (1.0 - constraint[node])
 
-    data_frame = pd.DataFrame.from_dict(broker_coefficient, orient="index", columns=["Broker Coefficient"])
+    data_frame = pd.DataFrame.from_dict(centrality, orient="index", columns=["Betweenness Centrality"])
+    data_frame["Constraint"] = constraint.values()
+    data_frame["Broker Coefficient"] = broker_coefficient.values()
 
     data_frame.sort_values(by="Broker Coefficient", ascending=False, inplace=True)
     data_frame = data_frame.head(10)
@@ -117,17 +153,18 @@ def analyze():
     SNetT = nx.read_gml("models/snett.gml")
     UserNet = nx.read_gml("models/usernet.gml")
 
-    # graphs = [SNetT]
-    graphs = [SNet, SNetF, SNetT, UserNet]
+    graphs = [SNetT]
+    # graphs = [SNet, SNetF, SNetT, UserNet]
 
-    # graph_names = ["SNetT"]
-    graph_names = ["SNet", "SNetF", "SNetT", "UserNet"]
+    graph_names = ["SNetT"]
+    # graph_names = ["SNet", "SNetF", "SNetT", "UserNet"]
 
     for graph, graph_name in zip(graphs, graph_names):
         print(f"Network {graph_name}...")
 
         # create_dendrogram(graph, graph_name)
-        find_brokers(graph, graph_name)
+        spectral_clustering(graph, graph_name)
+        # find_brokers(graph, graph_name)
 
         print()
 
