@@ -121,7 +121,7 @@ def spectral_clustering(graph, graph_name):
 
         nx.write_gml(colored_graph, f"models/spectral/{graph_name}/{graph_name}_spectral_{k}.gml".lower())
 
-        print(f"{k:2}-means clustering: components' sizes {cluster_sizes}")
+        print(f"{k:2}-cluster partition: {cluster_sizes}")
 
 
 def find_brokers(graph, graph_name):
