@@ -117,18 +117,18 @@ def analyze():
     SNetT = nx.read_gml("models/snett.gml")
     UserNet = nx.read_gml("models/usernet.gml")
 
-    # graphs = [SNetT]
-    graphs = [SNet, SNetF, SNetT, UserNet]
+    graphs = [SNetT]
+    # graphs = [SNet, SNetF, SNetT, UserNet]
     graph_names = ["SNet", "SNetF", "SNetT", "UserNet"]
 
     for graph, graph_name in zip(graphs, graph_names):
         print(f"Network {graph_name}...")
 
-        clustering_coefficient_calculation(graph, graph_name, [None, "weight"])
+        # clustering_coefficient_calculation(graph, graph_name, [None, "weight"])
         # small_world(graph)
         assortativity_analysis(graph)
-        rich_club(graph, graph_name)
-        degree_distribution(graph, graph_name)
+        # rich_club(graph, graph_name)
+        # degree_distribution(graph, graph_name)
 
         print()
 
